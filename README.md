@@ -1,3 +1,3 @@
-### Inventory cli
+## Inventory cli
 
-A basic cli made using node js with a database for storing data.
+🖇️A basic cli made using node js. It's supported with a `sqlite3` database for storing data.

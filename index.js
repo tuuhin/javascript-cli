@@ -1,26 +1,41 @@
+#!/usr/bin/
 import chalk from "chalk";
 import gradient from "gradient-string";
-import chalkAnimtion from "chalk-animation";
 import figlet from "figlet";
 import inquirer from "inquirer";
 import { createSpinner } from "nanospinner";
 import { PrismaClient } from "@prisma/client";
 
-const sleep = () => new Promise((e) => setTimeout(e, 100));
+const sleep = (milliseconds = 100) =>
+  new Promise((e) => setTimeout(e, milliseconds));
+
 const prisma = new PrismaClient();
 
 const addItem = async () => {
   const title = await inquirer.prompt({
     name: "title",
     type: "input",
-    message: "Enter the name of the item",
+    message: "Enter the name of the item :",
+    validate: (input) => {
+      if (!input) {
+        return "Item name is blank. Can't use blank over here";
+      }
+      return true;
+    },
   });
+
   const price = await inquirer.prompt({
     name: "price",
     type: "number",
-    message: "Enter the price of the item",
-    default: () => 0.0,
+    message: "Enter the price of the item : ",
+    validate: (input) => {
+      if (typeof input != "number") {
+        return "The price of the item should be a number ";
+      }
+      return true;
+    },
   });
+
   const spinner = createSpinner("Creating new entry please wait ...").start();
   try {
     await prisma.item.create({
@@ -29,10 +44,16 @@ const addItem = async () => {
         price: price.price,
       },
     });
-    spinner.success({ text: "Successfully created a entry" });
+    spinner.success({
+      text: `${chalk.green(
+        "Successfully"
+      )} created a entry titled ${chalk.magentaBright(
+        title.title
+      )} and price ${chalk.blueBright(price.price)}`,
+    });
   } catch (e) {
     spinner.error({
-      text: `Failed to create a entry the error was due to ${e}`,
+      text: `There was a error in creating a entry`,
     });
   }
 };
@@ -45,7 +66,7 @@ const viewItems = async () => {
     console.table(items);
   } catch (e) {
     spinner.error({
-      text: `Failed to create a entry the error was due to ${e}`,
+      text: `${chalk.bgYellowBright("Loaded")} all the entries..`,
     });
   }
 };
@@ -55,6 +76,15 @@ const deleteItem = async () => {
     name: "itemId",
     type: "number",
     message: "Enter the id of the item : ",
+    validate: async (input) => {
+      const exists = await prisma.item.findFirst({ where: { id: input } });
+      console.log(exists);
+      if (!exists) {
+        return `${chalk.redBright(`ID : ${input} don't exists.`)}`;
+      } else {
+        return true;
+      }
+    },
   });
   const spinner = createSpinner("Deleting item...").start();
   try {
@@ -62,20 +92,20 @@ const deleteItem = async () => {
     spinner.success({ text: "Item deleted successfully" });
   } catch (e) {
     spinner.error({
-      text: `${e}`,
+      text: ` An operation failed because it depends on one or more records that were required but not found. Record to delete does not exist.`,
     });
   }
 };
 
 const close = async () => {
   const spinner = createSpinner("Closing your cli").start();
-  await sleep();
+  prisma.$disconnect();
   spinner.success({ text: `${chalk.greenBright("Successfully exited")}` });
   process.exit(1);
 };
 
 const heading = async () => {
-  figlet("Inventory cli", (err, data) => {
+  figlet("INVENTORY CLI", (err, data) => {
     console.log(gradient.pastel.multiline(data));
   });
   await sleep();
@@ -83,7 +113,9 @@ const heading = async () => {
     "inventory"
   )} cli with some of the basic functions like ${chalk.magentaBright(
     "Add a item "
-  )},${chalk.blueBright("View an item ")}, ${chalk.redBright("Delete an item ")}
+  )},${chalk.blueBright("View an item ")} , ${chalk.redBright(
+    "Delete an item "
+  )}
     `);
 };
 
@@ -92,6 +124,7 @@ const question = async () => {
     name: "option",
     type: "list",
     message: "Select a option to continue",
+    loop: true,
     choices: ["Add a Item", "View Items", "Delete a Item", "Quit the program"],
   });
   if (choice.option == "Add a Item") {
@@ -107,5 +140,4 @@ const question = async () => {
 
 await heading();
 await question();
-
 prisma.$disconnect();
